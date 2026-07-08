@@ -255,68 +255,77 @@ function generateLake() {
   const rand = mulberry32(777);
   const boxes = [];
 
+  // Linear scale for the ponds and their berms: 2 -> 4x water area. The
+  // spillway gap, berm height, cars, and trees stay physical sizes.
+  const S = 2;
+  const sc = (r) => r.map((v) => v * S);
+
   // Pond A: teardrop, wide east end narrowing west toward the spillway.
   // Pond B: long north-south pond below it. Overlapping rects fake the curves.
-  const A_RECTS = [[30, -48, 72, -8], [10, -42, 40, -12], [-2, -34, 16, -16]];
-  const B_RECTS = [[-20, -6, 8, 52], [-24, 6, 12, 40], [-16, 50, 4, 58]];
+  const A_RECTS = [[30, -48, 72, -8], [10, -42, 40, -12], [-2, -34, 16, -16]].map(sc);
+  const B_RECTS = [[-20, -6, 8, 52], [-24, 6, 12, 40], [-16, 50, 4, 58]].map(sc);
+  // Water level sits 0.2 m above grade so the surface out-depths the ground
+  // grid at long range (2 cm was inside depth-buffer error past ~100 m).
   const water = [...A_RECTS, ...B_RECTS].map(([x0, z0, x1, z1]) =>
-    ({ min: [x0, z0], max: [x1, z1], level: 0 }));
+    ({ min: [x0, z0], max: [x1, z1], level: 0.2 }));
 
-  // Grass berms ringing both ponds (flat-topped embankments, land-able)
+  // Grass berms ringing both ponds (flat-topped embankments, land-able).
+  // The two channel-adjacent segments are pre-adjusted so their scaled edges
+  // meet the spillway walls exactly.
   const BERMS = [
     // pond A north edge, stepped along the teardrop
     [28, -53, 74, -48], [8, -47, 32, -42], [-4, -39, 12, -34],
-    [72, -50, 77, -6],                       // east cap
-    [28, -8, 74, -3], [10, -16, 32, -11],    // south edge
-    [-8, -36, -2, -14],                      // west cap of the neck
+    [72, -50, 77, -6],                     // east cap
+    [28, -8, 74, -3], [7, -16, 32, -11],   // south edge, east of the channel
+    [-8, -36, -2, -14],                    // west cap of the neck
     // pond B, north tip to south tip
-    [-22, -11, 0, -6],
+    [-22, -11, 2, -6],                     // north tip, west of the channel
     [8, -6, 13, 8], [12, 6, 17, 40], [8, 38, 13, 54], [4, 52, 9, 60],
     [-18, 58, 6, 63],
     [-25, -6, -20, 8], [-29, 6, -24, 40], [-25, 38, -20, 52], [-21, 50, -16, 60],
-  ];
-  for (const [x0, z0, x1, z1] of BERMS) boxes.push(box(x0, 0, z0, x1, 2, z1, LAKE.berm));
+  ].map(sc);
+  for (const [x0, z0, x1, z1] of BERMS) boxes.push(box(x0, 0, z0, x1, 2.5, z1, LAKE.berm));
 
   // Spillway: concrete channel between pond A's neck and pond B's north tip.
-  // 6 m gap between 2.2 m walls with a low sill mid-channel to hop.
+  // Still a 6 m gap between 2.2 m walls with a low sill to hop.
   boxes.push(
-    box(0, 0, -16, 2, 2.2, -6, LAKE.concrete),
-    box(8, 0, -16, 10, 2.2, -6, LAKE.concrete),
-    box(2, 0, -11.5, 8, 0.5, -10.5, LAKE.concrete),
-    box(2, 0, -16, 8, 0.08, -6, LAKE.concrete)
+    box(4, 0, -32, 6, 2.2, -12, LAKE.concrete),
+    box(12, 0, -32, 14, 2.2, -12, LAKE.concrete),
+    box(6, 0, -22.5, 12, 0.5, -21.5, LAKE.concrete),
+    box(6, 0, -32, 12, 0.08, -12, LAKE.concrete)
   );
-  boxes.push(box(-8, 0, 58, -4, 1.2, 59, LAKE.concrete)); // outfall headwall
+  boxes.push(box(-12, 0, 116, -4, 1.4, 117.5, LAKE.concrete)); // outfall headwall
 
   // Parking lot west of the ponds: asphalt, car rows, tree islands
-  boxes.push(box(-85, 0, -55, -32, 0.04, -6, LAKE.asphalt));
-  for (const cx of [-78, -66, -54, -42]) {
-    for (let cz = -50; cz <= -12; cz += 4.6) {
+  boxes.push(box(-110, 0, -75, -55, 0.04, -25, LAKE.asphalt));
+  for (const cx of [-103, -91, -79, -67]) {
+    for (let cz = -70; cz <= -31; cz += 4.6) {
       if (rand() < 0.3) continue; // empty slot
       const color = LAKE.cars[Math.floor(rand() * LAKE.cars.length)];
       boxes.push(box(cx - 1, 0, cz - 2.2, cx + 1, 1.3, cz + 2.2, color));
       boxes.push(box(cx - 0.8, 1.3, cz - 1.1, cx + 0.8, 1.95, cz + 0.9, color));
     }
-    makeTree(boxes, rand, cx + 6, -31 + rand() * 6);
+    makeTree(boxes, rand, cx + 6, -50 + rand() * 6);
   }
 
   // Office building north of the lot
   boxes.push(
-    box(-78, 0, -72, -48, 9, -58, LAKE.building),
-    box(-78.3, 9, -72.3, -47.7, 9.7, -57.7, LAKE.trim),
-    box(-66, 3, -58, -58, 3.4, -55, LAKE.trim)
+    box(-100, 0, -92, -70, 9, -78, LAKE.building),
+    box(-100.3, 9, -92.3, -69.7, 9.7, -77.7, LAKE.trim),
+    box(-88, 3, -78, -80, 3.4, -75, LAKE.trim)
   );
 
   // Forest ring; keep water, lot, building, and spawn clear
   const clearZones = [
-    [-32, -57, 82, 5],   // pond A + north berms + spillway
-    [-34, -12, 22, 68],  // pond B
-    [-90, -75, -28, -2], // lot + building
+    [-20, -110, 158, -8],    // pond A + berms + spillway corridor
+    [-62, -26, 38, 130],     // pond B + berms
+    [-115, -95, -50, -20],   // lot + building
   ];
   let placed = 0;
-  while (placed < 70) {
-    const x = (rand() * 2 - 1) * 95;
-    const z = (rand() * 2 - 1) * 95;
-    if (Math.hypot(x + 28, z + 22) < 10) continue;
+  while (placed < 120) {
+    const x = (rand() * 2 - 1) * 170;
+    const z = (rand() * 2 - 1) * 170;
+    if (Math.hypot(x + 50, z + 45) < 10) continue;
     if (clearZones.some(([x0, z0, x1, z1]) => x > x0 && x < x1 && z > z0 && z < z1)) continue;
     makeTree(boxes, rand, x, z);
     placed++;
@@ -325,8 +334,11 @@ function generateLake() {
   return {
     boxes,
     water,
-    spawn: { position: [-28, CONFIG.drone.collisionRadius, -22], yaw: -Math.PI / 2 },
-    env: { sky: 0x8fc9e8, fogNear: 80, fogFar: 300, ground: 0x5f8a52, grid: 0x517a47 },
+    spawn: { position: [-50, CONFIG.drone.collisionRadius, -45], yaw: -Math.PI / 2 },
+    env: {
+      sky: 0x8fc9e8, fogNear: 100, fogFar: 400,
+      ground: 0x5f8a52, grid: 0x517a47, size: 400,
+    },
   };
 }
 
@@ -418,6 +430,7 @@ export function buildWorldScene(scene, layout) {
   const env = {
     sky: 0x87b5d9, fogNear: 60, fogFar: 260,
     ground: 0x6a8f5a, grid: 0x4c5c44,
+    size: CONFIG.world.size, // play-area extent: sets grid size, ground margin
     ...layout.env,
   };
 
@@ -431,7 +444,7 @@ export function buildWorldScene(scene, layout) {
 
   // Visual ground extends well past the play area so the horizon never shows
   // the plane's edge; collision ground (y=0) is infinite anyway.
-  const groundSize = CONFIG.world.size * 4;
+  const groundSize = env.size * 4;
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(groundSize, groundSize),
     new THREE.MeshLambertMaterial({ color: env.ground })
@@ -439,18 +452,24 @@ export function buildWorldScene(scene, layout) {
   ground.rotation.x = -Math.PI / 2;
   scene.add(ground);
 
-  const grid = new THREE.GridHelper(CONFIG.world.size, 100, env.grid, env.grid);
+  const grid = new THREE.GridHelper(env.size, Math.round(env.size / 3), env.grid, env.grid);
   grid.position.y = 0.02;
   scene.add(grid);
 
-  // Water surfaces: thin slabs, height-staggered so overlaps don't z-fight.
+  // Water surfaces: slabs whose tops sit at the collision water level,
+  // height-staggered a few mm so overlapping rects don't z-fight each other.
   if (layout.water && layout.water.length) {
     const waterMat = new THREE.MeshLambertMaterial({ color: LAKE.water });
+    const H = 0.3;
     layout.water.forEach((w, i) => {
       const sx = w.max[0] - w.min[0];
       const sz = w.max[1] - w.min[1];
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, 0.02, sz), waterMat);
-      mesh.position.set(w.min[0] + sx / 2, w.level + 0.03 + i * 0.005, w.min[1] + sz / 2);
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, H, sz), waterMat);
+      mesh.position.set(
+        w.min[0] + sx / 2,
+        w.level - H / 2 + i * 0.003,
+        w.min[1] + sz / 2
+      );
       scene.add(mesh);
     });
   }
