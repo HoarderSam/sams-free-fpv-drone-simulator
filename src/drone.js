@@ -17,6 +17,7 @@ export class Drone {
     this.motorThrust = [0, 0, 0, 0]; // N
     this.armed = false;
     this.crashed = false;
+    this.splashed = false;
     this.inContact = false;
 
     this._qInv = new THREE.Quaternion();
@@ -37,6 +38,7 @@ export class Drone {
     this.motorThrust.fill(0);
     this.armed = false;
     this.crashed = false;
+    this.splashed = false;
     this.fc.reset();
   }
 
@@ -120,6 +122,21 @@ export class Drone {
       this.inContact = true;
       this._n.fromArray(contact.normal);
       this.position.addScaledVector(this._n, contact.depth);
+
+      if (contact.water) {
+        // Props in water end the flight regardless of speed; no bounce,
+        // heavy drag, and it settles floating at the surface.
+        if (this.armed) {
+          this.crashed = true;
+          this.splashed = true;
+          this.armed = false;
+        }
+        const vn = this.velocity.dot(this._n);
+        if (vn < 0) this.velocity.addScaledVector(this._n, -vn);
+        this.velocity.multiplyScalar(Math.exp(-3 * dt));
+        this.omega.multiplyScalar(Math.exp(-10 * dt));
+        return;
+      }
 
       const vn = this.velocity.dot(this._n);
       if (vn < 0) {

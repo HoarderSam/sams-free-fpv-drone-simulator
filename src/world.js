@@ -233,10 +233,109 @@ function generateBando() {
 }
 
 // ---------------------------------------------------------------------------
+// The Lake: two retaining ponds joined by a concrete spillway gap, with a
+// parking lot, office building, and treeline. Water splashes armed quads.
+// ---------------------------------------------------------------------------
+
+const LAKE = {
+  water: 0x1f4854, berm: 0x7aa05e, concrete: 0x9aa0a2, asphalt: 0x3d4043,
+  trunk: 0x5a4632, canopy: [0x3f6b35, 0x49793c, 0x35592c],
+  building: 0xb9b2a4, trim: 0x8f887a,
+  cars: [0xb8bcc0, 0x2f3336, 0x8c1f1f, 0x1f3f6e, 0xd8d5cd, 0x4a4f45],
+};
+
+function makeTree(boxes, rand, x, z) {
+  boxes.push(box(x - 0.25, 0, z - 0.25, x + 0.25, 2.2, z + 0.25, LAKE.trunk));
+  const s = 1.4 + rand() * 1.3;
+  boxes.push(box(x - s, 1.8, z - s, x + s, 2.2 + s * 1.5, z + s,
+    LAKE.canopy[Math.floor(rand() * LAKE.canopy.length)]));
+}
+
+function generateLake() {
+  const rand = mulberry32(777);
+  const boxes = [];
+
+  // Pond A: teardrop, wide east end narrowing west toward the spillway.
+  // Pond B: long north-south pond below it. Overlapping rects fake the curves.
+  const A_RECTS = [[30, -48, 72, -8], [10, -42, 40, -12], [-2, -34, 16, -16]];
+  const B_RECTS = [[-20, -6, 8, 52], [-24, 6, 12, 40], [-16, 50, 4, 58]];
+  const water = [...A_RECTS, ...B_RECTS].map(([x0, z0, x1, z1]) =>
+    ({ min: [x0, z0], max: [x1, z1], level: 0 }));
+
+  // Grass berms ringing both ponds (flat-topped embankments, land-able)
+  const BERMS = [
+    // pond A north edge, stepped along the teardrop
+    [28, -53, 74, -48], [8, -47, 32, -42], [-4, -39, 12, -34],
+    [72, -50, 77, -6],                       // east cap
+    [28, -8, 74, -3], [10, -16, 32, -11],    // south edge
+    [-8, -36, -2, -14],                      // west cap of the neck
+    // pond B, north tip to south tip
+    [-22, -11, 0, -6],
+    [8, -6, 13, 8], [12, 6, 17, 40], [8, 38, 13, 54], [4, 52, 9, 60],
+    [-18, 58, 6, 63],
+    [-25, -6, -20, 8], [-29, 6, -24, 40], [-25, 38, -20, 52], [-21, 50, -16, 60],
+  ];
+  for (const [x0, z0, x1, z1] of BERMS) boxes.push(box(x0, 0, z0, x1, 2, z1, LAKE.berm));
+
+  // Spillway: concrete channel between pond A's neck and pond B's north tip.
+  // 6 m gap between 2.2 m walls with a low sill mid-channel to hop.
+  boxes.push(
+    box(0, 0, -16, 2, 2.2, -6, LAKE.concrete),
+    box(8, 0, -16, 10, 2.2, -6, LAKE.concrete),
+    box(2, 0, -11.5, 8, 0.5, -10.5, LAKE.concrete),
+    box(2, 0, -16, 8, 0.08, -6, LAKE.concrete)
+  );
+  boxes.push(box(-8, 0, 58, -4, 1.2, 59, LAKE.concrete)); // outfall headwall
+
+  // Parking lot west of the ponds: asphalt, car rows, tree islands
+  boxes.push(box(-85, 0, -55, -32, 0.04, -6, LAKE.asphalt));
+  for (const cx of [-78, -66, -54, -42]) {
+    for (let cz = -50; cz <= -12; cz += 4.6) {
+      if (rand() < 0.3) continue; // empty slot
+      const color = LAKE.cars[Math.floor(rand() * LAKE.cars.length)];
+      boxes.push(box(cx - 1, 0, cz - 2.2, cx + 1, 1.3, cz + 2.2, color));
+      boxes.push(box(cx - 0.8, 1.3, cz - 1.1, cx + 0.8, 1.95, cz + 0.9, color));
+    }
+    makeTree(boxes, rand, cx + 6, -31 + rand() * 6);
+  }
+
+  // Office building north of the lot
+  boxes.push(
+    box(-78, 0, -72, -48, 9, -58, LAKE.building),
+    box(-78.3, 9, -72.3, -47.7, 9.7, -57.7, LAKE.trim),
+    box(-66, 3, -58, -58, 3.4, -55, LAKE.trim)
+  );
+
+  // Forest ring; keep water, lot, building, and spawn clear
+  const clearZones = [
+    [-32, -57, 82, 5],   // pond A + north berms + spillway
+    [-34, -12, 22, 68],  // pond B
+    [-90, -75, -28, -2], // lot + building
+  ];
+  let placed = 0;
+  while (placed < 70) {
+    const x = (rand() * 2 - 1) * 95;
+    const z = (rand() * 2 - 1) * 95;
+    if (Math.hypot(x + 28, z + 22) < 10) continue;
+    if (clearZones.some(([x0, z0, x1, z1]) => x > x0 && x < x1 && z > z0 && z < z1)) continue;
+    makeTree(boxes, rand, x, z);
+    placed++;
+  }
+
+  return {
+    boxes,
+    water,
+    spawn: { position: [-28, CONFIG.drone.collisionRadius, -22], yaw: -Math.PI / 2 },
+    env: { sky: 0x8fc9e8, fogNear: 80, fogFar: 300, ground: 0x5f8a52, grid: 0x517a47 },
+  };
+}
+
+// ---------------------------------------------------------------------------
 
 export const MAPS = {
   classic: { name: 'Classic Field', generate: generateClassic },
   bando: { name: 'The Bando', generate: generateBando },
+  lake: { name: 'The Lake', generate: generateLake },
 };
 
 export function generateLayout(mapId = 'classic') {
@@ -244,10 +343,12 @@ export function generateLayout(mapId = 'classic') {
   return map.generate();
 }
 
-// Sphere vs ground plane (y=0) and AABBs, accelerated by a uniform x/z grid
-// so dense maps stay O(few) per query at 500 Hz. Returns deepest contact.
+// Sphere vs ground plane (y=0), water rects, and AABBs, accelerated by a
+// uniform x/z grid so dense maps stay O(few) per query at 500 Hz. Returns the
+// deepest contact; water contacts carry {water: true} so the drone can splash.
 export function createCollisionWorld(layout) {
   const boxes = layout.boxes;
+  const waterRects = layout.water || [];
   const CELL = 8;
   const cells = new Map();
   const key = (cx, cz) => cx * 100000 + cz;
@@ -269,6 +370,15 @@ export function createCollisionWorld(layout) {
   return {
     collide(p, r) {
       let best = p.y < r ? { normal: [0, 1, 0], depth: r - p.y } : null;
+      // >= so a water surface at ground level outranks the plain ground
+      // contact, while any deeper solid contact (berm, wall) still wins.
+      for (const w of waterRects) {
+        if (p.x < w.min[0] || p.x > w.max[0] || p.z < w.min[1] || p.z > w.max[1]) continue;
+        const depth = w.level + r - p.y;
+        if (depth > 0 && (!best || depth >= best.depth)) {
+          best = { normal: [0, 1, 0], depth, water: true };
+        }
+      }
       queryId++;
       const cx0 = Math.floor((p.x - r) / CELL), cx1 = Math.floor((p.x + r) / CELL);
       const cz0 = Math.floor((p.z - r) / CELL), cz1 = Math.floor((p.z + r) / CELL);
@@ -332,6 +442,18 @@ export function buildWorldScene(scene, layout) {
   const grid = new THREE.GridHelper(CONFIG.world.size, 100, env.grid, env.grid);
   grid.position.y = 0.02;
   scene.add(grid);
+
+  // Water surfaces: thin slabs, height-staggered so overlaps don't z-fight.
+  if (layout.water && layout.water.length) {
+    const waterMat = new THREE.MeshLambertMaterial({ color: LAKE.water });
+    layout.water.forEach((w, i) => {
+      const sx = w.max[0] - w.min[0];
+      const sz = w.max[1] - w.min[1];
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, 0.02, sz), waterMat);
+      mesh.position.set(w.min[0] + sx / 2, w.level + 0.03 + i * 0.005, w.min[1] + sz / 2);
+      scene.add(mesh);
+    });
+  }
 
   // All boxes in a single instanced draw call - map density is essentially free.
   const inst = new THREE.InstancedMesh(

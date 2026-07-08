@@ -86,6 +86,9 @@ export class Input {
       mapNext: now.map && !this.prevKeys.map,
     };
     this.prevKeys = now;
+    // The keyboard throttle is virtual and sticky; a real stick you'd pull
+    // down yourself. Zero it on reset so re-arming isn't blocked.
+    if (events.reset) this.kb.throttle = 0;
 
     return { roll, pitch, yaw, throttle, ...events };
   }

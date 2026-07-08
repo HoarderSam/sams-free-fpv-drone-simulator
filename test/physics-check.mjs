@@ -183,5 +183,23 @@ for (const tc of RATE_CASES) {
     `${layout.boxes.length} boxes vs ${classicCount}`);
 }
 
+// --- 6. Lake map: water splashes armed quads, floats disarmed ones -----------
+{
+  const lakeWorld = createCollisionWorld(generateLayout('lake'));
+  const d = new Drone();
+  d.reset({ position: [35, 4, -30], yaw: 0 }); // over the middle of pond A
+  d.arm();
+  run(d, { throttle: 0 }, 2, lakeWorld);
+  check('lake: armed water contact -> splash + disarm', d.crashed && d.splashed && !d.armed);
+  check('lake: floats at the surface', Math.abs(d.position.y - CONFIG.drone.collisionRadius) < 0.05,
+    `y=${d.position.y.toFixed(3)} m`);
+
+  const d2 = new Drone();
+  d2.reset({ position: [5, 3, -11], yaw: 0 }); // over the spillway sill: solid, not water
+  run(d2, { throttle: 0 }, 2, lakeWorld);
+  check('lake: spillway channel is solid concrete', !d2.splashed && d2.position.y > 0.5,
+    `rests at y=${d2.position.y.toFixed(2)} on the sill`);
+}
+
 console.log(failures === 0 ? '\nAll physics checks passed.' : `\n${failures} check(s) FAILED.`);
 process.exit(failures === 0 ? 0 : 1);

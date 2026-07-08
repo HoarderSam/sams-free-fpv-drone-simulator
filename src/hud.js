@@ -16,7 +16,7 @@ export class HUD {
   update(drone, cmd, input, elapsed) {
     let state, color;
     if (drone.crashed) {
-      state = 'CRASHED - press R to reset';
+      state = drone.splashed ? 'IN THE DRINK - press R to reset' : 'CRASHED - press R to reset';
       color = '#ff5a4a';
     } else if (drone.armed) {
       state = `ARMED  ${elapsed.toFixed(1)}s`;

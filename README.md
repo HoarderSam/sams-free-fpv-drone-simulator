@@ -22,6 +22,10 @@ Pick with `?map=<id>` in the URL or cycle with **M** in-game:
 - `bando` — freestyle playground: a five-story gutted concrete tower with dive
   holes in every slab, window bays, a solid core to orbit, a half-built
   neighbor, derelict shells, and rubble.
+- `lake` — two retaining ponds joined by a concrete spillway gap (walls plus a
+  low sill to thread), grass berms all around, a parking-lot slalom, an office
+  building, and a treeline. Water is a hazard: touch it while armed and you're
+  in the drink — reset to fly again. Disarmed quads float.
 
 Maps are plain data (`src/world.js`): a generator returns boxes + spawn + sky
 settings, and collision (uniform-grid accelerated) and rendering (single
