@@ -1,3 +1,5 @@
+const GIMBAL_SIZE = 84;
+
 export class HUD {
   constructor() {
     this.status = document.getElementById('status');
@@ -5,6 +7,8 @@ export class HUD {
     this.telemetry = document.getElementById('telemetry');
     this.throttleBar = document.getElementById('throttle-bar');
     this.inputDebug = document.getElementById('input-debug');
+    this.stickLeft = document.getElementById('stick-left');
+    this.stickRight = document.getElementById('stick-right');
     this.flashUntil = 0;
   }
 
@@ -39,6 +43,14 @@ export class HUD {
         : 'no gamepad - keyboard mode');
 
     this.throttleBar.style.height = `${(cmd.throttle * 100).toFixed(0)}%`;
+
+    // Mode 2 gimbal overlay: left = yaw/throttle, right = roll/pitch.
+    // Screen y grows downward, so full throttle / pitch forward map to top.
+    const px = (v) => Math.min(Math.max(v, 0), 1) * GIMBAL_SIZE;
+    this.stickLeft.style.transform =
+      `translate(${px(cmd.yaw * 0.5 + 0.5)}px, ${px(1 - cmd.throttle)}px)`;
+    this.stickRight.style.transform =
+      `translate(${px(cmd.roll * 0.5 + 0.5)}px, ${px(0.5 - cmd.pitch * 0.5)}px)`;
 
     const sgn = (v) => (v >= 0 ? '+' : '') + v.toFixed(2);
     this.inputDebug.textContent = input.rawAxes

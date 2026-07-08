@@ -46,6 +46,8 @@ To add a map, write one generator function and register it in `MAPS`.
 
 Arming requires throttle low (like a real flight controller). It flies acro
 (rate) mode only — there is no self-leveling; that is the FPV standard.
+A Mode 2 stick overlay (left gimbal: throttle/yaw, right: pitch/roll) sits at
+the bottom of the HUD — handy for recording flights.
 
 **USB RC transmitters** (RadioMaster, Taranis, etc. in joystick mode) work via the
 Gamepad API and are by far the best way to fly. The sim auto-selects a mapping

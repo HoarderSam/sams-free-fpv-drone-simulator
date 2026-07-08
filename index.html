@@ -25,6 +25,24 @@
     #input-debug { position: absolute; left: 36px; bottom: 90px; font-size: 11px; color: #6fbf3e; white-space: pre; }
     #crosshair { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px;
       background: rgba(157,255,87,.8); border-radius: 50%; }
+    #sticks {
+      position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%);
+      display: flex; gap: 12px;
+    }
+    .gimbal {
+      position: relative; width: 84px; height: 84px;
+      border: 1px solid rgba(157,255,87,.7); background: rgba(0,0,0,.35);
+    }
+    .gimbal::before, .gimbal::after {
+      content: ''; position: absolute; background: rgba(157,255,87,.25);
+    }
+    .gimbal::before { left: 0; right: 0; top: 50%; height: 1px; }
+    .gimbal::after { top: 0; bottom: 0; left: 50%; width: 1px; }
+    .stick-dot {
+      position: absolute; left: -5px; top: -5px; width: 10px; height: 10px;
+      border-radius: 50%; background: #9dff57; box-shadow: 0 0 4px rgba(0,0,0,.9);
+      will-change: transform;
+    }
     #hint { position: absolute; bottom: 14px; left: 16px; right: 16px; color: #cfe9b8; font-size: 12px; opacity: .85; }
   </style>
 </head>
@@ -37,6 +55,10 @@
     <div id="throttle-wrap"><div id="throttle-bar"></div></div>
     <div id="input-debug"></div>
     <div id="crosshair"></div>
+    <div id="sticks">
+      <div class="gimbal"><div class="stick-dot" id="stick-left"></div></div>
+      <div class="gimbal"><div class="stick-dot" id="stick-right"></div></div>
+    </div>
     <div id="hint">
       Enter / gamepad A: arm &nbsp;|&nbsp; R / B: reset &nbsp;|&nbsp; C: camera &nbsp;|&nbsp;
       keyboard: W/S throttle, A/D yaw, arrows pitch/roll (gamepad or USB radio strongly recommended)
