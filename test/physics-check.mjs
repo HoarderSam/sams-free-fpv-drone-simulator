@@ -203,5 +203,21 @@ for (const tc of RATE_CASES) {
     `rests at y=${d2.position.y.toFixed(2)} on the sill`);
 }
 
+// --- 7. Mountain map: verticality and a clear launch bowl --------------------
+{
+  const layout = generateLayout('mountain');
+  const world = createCollisionWorld(layout);
+  const peak = Math.max(...layout.boxes.map((b) => b.max[1]));
+  check('mountain: substantial terrain', layout.boxes.length > 1500,
+    `${layout.boxes.length} boxes`);
+  check('mountain: real verticality', peak >= 50, `peak=${peak} m`);
+
+  const d = new Drone();
+  d.reset({ position: [0, 3, 0], yaw: 0 });
+  run(d, { throttle: 0 }, 2, world);
+  check('mountain: spawn bowl is clear ground', Math.abs(d.position.y - CONFIG.drone.collisionRadius) < 0.02,
+    `rests at y=${d.position.y.toFixed(3)}`);
+}
+
 console.log(failures === 0 ? '\nAll physics checks passed.' : `\n${failures} check(s) FAILED.`);
 process.exit(failures === 0 ? 0 : 1);

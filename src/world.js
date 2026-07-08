@@ -68,10 +68,19 @@ function generateClassic(cfg = CONFIG.world) {
     }
   }
 
+  // Billboard building facing the spawn, with a painted wall sign
+  boxes.push(box(-14, 0, -20, -2, 8, -14, 0x6e7a86));
+
   return {
     boxes,
     spawn: { position: [0, CONFIG.drone.collisionRadius, 20], yaw: 0 },
     env: {},
+    sign: {
+      text: 'HOARDER SAM',
+      center: [-8, 5, -13.95], // just proud of the building's south face
+      size: [11, 2.75],
+      rotationY: 0, // plane faces +z, toward the spawn
+    },
   };
 }
 
@@ -238,22 +247,35 @@ function generateBando() {
 // ---------------------------------------------------------------------------
 
 const LAKE = {
-  water: 0x1f4854, berm: 0x7aa05e, concrete: 0x9aa0a2, asphalt: 0x3d4043,
+  water: 0x1f4854, berm: 0x7aa05e, bermLow: 0x709657, path: 0x9a8a66,
+  concrete: 0x9aa0a2, asphalt: 0x3d4043, line: 0xcfd3d6, pole: 0x2e3236,
   trunk: 0x5a4632, canopy: [0x3f6b35, 0x49793c, 0x35592c],
+  reed: [0x6f7a3a, 0x8a7a4a],
   building: 0xb9b2a4, trim: 0x8f887a,
   cars: [0xb8bcc0, 0x2f3336, 0x8c1f1f, 0x1f3f6e, 0xd8d5cd, 0x4a4f45],
 };
 
 function makeTree(boxes, rand, x, z) {
+  if (rand() < 0.2) { // low bush
+    const b = 0.8 + rand() * 0.8;
+    boxes.push(box(x - b, 0, z - b, x + b, 0.7 + b, z + b,
+      LAKE.canopy[Math.floor(rand() * LAKE.canopy.length)]));
+    return;
+  }
   boxes.push(box(x - 0.25, 0, z - 0.25, x + 0.25, 2.2, z + 0.25, LAKE.trunk));
   const s = 1.4 + rand() * 1.3;
-  boxes.push(box(x - s, 1.8, z - s, x + s, 2.2 + s * 1.5, z + s,
+  const c = LAKE.canopy[Math.floor(rand() * LAKE.canopy.length)];
+  const top = 2.2 + s * 1.5;
+  boxes.push(box(x - s, 1.8, z - s, x + s, top, z + s, c));
+  const s2 = s * 0.55;
+  boxes.push(box(x - s2, top, z - s2, x + s2, top + s2 * 1.6, z + s2,
     LAKE.canopy[Math.floor(rand() * LAKE.canopy.length)]));
 }
 
 function generateLake() {
   const rand = mulberry32(777);
   const boxes = [];
+  const deco = []; // rendered but not collided: reeds, paint lines, paths
 
   // Linear scale for the ponds and their berms: 2 -> 4x water area. The
   // spillway gap, berm height, cars, and trees stay physical sizes.
@@ -284,7 +306,49 @@ function generateLake() {
     [-18, 58, 6, 63],
     [-25, -6, -20, 8], [-29, 6, -24, 40], [-25, 38, -20, 52], [-21, 50, -16, 60],
   ].map(sc);
-  for (const [x0, z0, x1, z1] of BERMS) boxes.push(box(x0, 0, z0, x1, 2.5, z1, LAKE.berm));
+  for (const [x0, z0, x1, z1] of BERMS) {
+    boxes.push(box(x0, 0, z0, x1, 2.5, z1, LAKE.berm));
+    // wider low terrace fakes the embankment slope; keep its toe out of the
+    // 6 m spillway gap (x 6..12) so the advertised gap stays flyable low
+    const t = [x0 - 2.5, z0 - 2.5, x1 + 2.5, z1 + 2.5];
+    if (t[1] < -10 && t[3] > -34) {
+      if (t[0] < 12 && t[0] > 4 && t[2] > 12) t[0] = 14;
+      else if (t[2] > 6 && t[2] < 14 && t[0] < 6) t[2] = 4;
+    }
+    boxes.push(box(t[0], 0, t[1], t[2], 1.1, t[3], LAKE.bermLow));
+    // narrow mowed dirt track along the crest, centered on the berm
+    if (x1 - x0 > 3 && z1 - z0 > 3) {
+      const ix = Math.max((x1 - x0 - 2.5) / 2, 1.2);
+      const iz = Math.max((z1 - z0 - 2.5) / 2, 1.2);
+      deco.push(box(x0 + ix, 2.5, z0 + iz, x1 - ix, 2.56, z1 - iz, LAKE.path));
+    }
+  }
+
+  // Cattail reeds along the shorelines (skip the spillway channel)
+  const CHANNEL = [2, -34, 16, -10];
+  for (const w of [...A_RECTS, ...B_RECTS]) {
+    const [x0, z0, x1, z1] = w;
+    const edges = [
+      (t) => [x0 + t * (x1 - x0), z0], (t) => [x0 + t * (x1 - x0), z1],
+      (t) => [x0, z0 + t * (z1 - z0)], (t) => [x1, z0 + t * (z1 - z0)],
+    ];
+    for (const edge of edges) {
+      for (let t = 0.02; t < 1; t += 0.045) {
+        if (rand() < 0.45) continue;
+        const [ex, ez] = edge(t);
+        const x = ex + (rand() * 2 - 1) * 1.5;
+        const z = ez + (rand() * 2 - 1) * 1.5;
+        if (x > CHANNEL[0] && x < CHANNEL[2] && z > CHANNEL[1] && z < CHANNEL[3]) continue;
+        // skip interior seams between overlapping rects: no reed lines mid-pond
+        const inOther = [...A_RECTS, ...B_RECTS].some((o) => o !== w &&
+          x > o[0] + 1 && x < o[2] - 1 && z > o[1] + 1 && z < o[3] - 1);
+        if (inOther) continue;
+        const h = 0.9 + rand() * 0.8;
+        deco.push(box(x - 0.08, 0, z - 0.08, x + 0.08, h, z + 0.08,
+          LAKE.reed[Math.floor(rand() * 2)]));
+      }
+    }
+  }
 
   // Spillway: concrete channel between pond A's neck and pond B's north tip.
   // Still a 6 m gap between 2.2 m walls with a low sill to hop.
@@ -296,16 +360,21 @@ function generateLake() {
   );
   boxes.push(box(-12, 0, 116, -4, 1.4, 117.5, LAKE.concrete)); // outfall headwall
 
-  // Parking lot west of the ponds: asphalt, car rows, tree islands
+  // Parking lot west of the ponds: asphalt, car rows, stall lines, tree islands
   boxes.push(box(-110, 0, -75, -55, 0.04, -25, LAKE.asphalt));
   for (const cx of [-103, -91, -79, -67]) {
     for (let cz = -70; cz <= -31; cz += 4.6) {
+      deco.push(box(cx - 2.3, 0.05, cz - 2.36, cx + 2.3, 0.07, cz - 2.24, LAKE.line));
       if (rand() < 0.3) continue; // empty slot
       const color = LAKE.cars[Math.floor(rand() * LAKE.cars.length)];
       boxes.push(box(cx - 1, 0, cz - 2.2, cx + 1, 1.3, cz + 2.2, color));
       boxes.push(box(cx - 0.8, 1.3, cz - 1.1, cx + 0.8, 1.95, cz + 0.9, color));
     }
     makeTree(boxes, rand, cx + 6, -50 + rand() * 6);
+  }
+  for (const [px, pz] of [[-107, -72], [-58, -72], [-107, -28], [-58, -28]]) {
+    boxes.push(box(px - 0.1, 0, pz - 0.1, px + 0.1, 6, pz + 0.1, LAKE.pole));
+    boxes.push(box(px - 0.6, 5.7, pz - 0.15, px + 0.6, 6, pz + 0.15, LAKE.pole));
   }
 
   // Office building north of the lot
@@ -333,11 +402,107 @@ function generateLake() {
 
   return {
     boxes,
+    deco,
     water,
     spawn: { position: [-50, CONFIG.drone.collisionRadius, -45], yaw: -Math.PI / 2 },
     env: {
       sky: 0x8fc9e8, fogNear: 100, fogFar: 400,
       ground: 0x5f8a52, grid: 0x517a47, size: 400,
+      shadows: true, // this is the "have a GPU" map; classic stays flat-lit
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// The Mountain: ridged-noise heightfield as terraced terrain columns - steep
+// ridgelines, winding valleys and saddles to fly through, pines for scale.
+// ---------------------------------------------------------------------------
+
+const MOUNT = {
+  forest: [0x567347, 0x5c7a4c, 0x516d43],
+  rock: [0x757a73, 0x7a7f78, 0x6f746d],
+  high: [0x8f958f, 0x969c96],
+  snow: [0xe2e8ea, 0xd8dfe2],
+  trunk: 0x4a3b2c,
+  pine: [0x2f4d33, 0x35573a],
+};
+
+function generateMountain() {
+  const rand = mulberry32(9001);
+  const ox = rand() * 1000;
+  const oz = rand() * 1000;
+
+  const hash2 = (ix, iz) => {
+    let h = Math.imul(ix, 374761393) ^ Math.imul(iz, 668265263);
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
+  };
+  const smooth = (t) => t * t * (3 - 2 * t);
+  const vnoise = (x, z) => {
+    const ix = Math.floor(x), iz = Math.floor(z);
+    const fx = smooth(x - ix), fz = smooth(z - iz);
+    const a = hash2(ix, iz), b = hash2(ix + 1, iz);
+    const c = hash2(ix, iz + 1), d = hash2(ix + 1, iz + 1);
+    return a + (b - a) * fx + (c - a) * fz + (a - b - c + d) * fx * fz;
+  };
+
+  // Ridged fBm: valleys form along noise midlines, so they connect into
+  // flyable canyon networks instead of isolated pits.
+  const heightAt = (wx, wz) => {
+    let amp = 1, freq = 1 / 140, sum = 0, norm = 0;
+    for (let o = 0; o < 4; o++) {
+      const n = vnoise(wx * freq + ox, wz * freq + oz);
+      const ridged = 1 - Math.abs(2 * n - 1);
+      sum += ridged * ridged * amp;
+      norm += amp;
+      amp *= 0.5;
+      freq *= 2.1;
+    }
+    let h = Math.pow(sum / norm, 2.0) * 85;
+    // guaranteed flat launch bowl at spawn, ramping up to full terrain
+    const d = Math.hypot(wx, wz);
+    h *= d < 15 ? 0 : Math.min(1, (d - 15) / 30);
+    return h;
+  };
+
+  const boxes = [];
+  const CELL = 6, HALF = 240, STEP = 2;
+  const pick = (arr, gx, gz) => arr[Math.floor(hash2(gx + 7, gz + 13) * arr.length)];
+  for (let gx = -HALF; gx < HALF; gx += CELL) {
+    for (let gz = -HALF; gz < HALF; gz += CELL) {
+      const h = Math.round(heightAt(gx + CELL / 2, gz + CELL / 2) / STEP) * STEP;
+      if (h < STEP) continue;
+      const palette =
+        h >= 56 ? MOUNT.snow : h >= 36 ? MOUNT.high : h >= 16 ? MOUNT.rock : MOUNT.forest;
+      boxes.push(box(gx, 0, gz, gx + CELL, h, gz + CELL, pick(palette, gx, gz)));
+    }
+  }
+
+  // Pines on the lower slopes, standing on their terrain column
+  for (let i = 0; i < 400; i++) {
+    const gx = (Math.floor(rand() * (2 * HALF / CELL)) - HALF / CELL) * CELL;
+    const gz = (Math.floor(rand() * (2 * HALF / CELL)) - HALF / CELL) * CELL;
+    const h = Math.round(heightAt(gx + CELL / 2, gz + CELL / 2) / STEP) * STEP;
+    if (h < STEP || h > 30) continue;
+    if (Math.hypot(gx, gz) < 30) continue;
+    const cx = gx + CELL / 2 + (rand() * 2 - 1) * 1.5;
+    const cz = gz + CELL / 2 + (rand() * 2 - 1) * 1.5;
+    const s = 1.3 + rand() * 0.9;
+    const pine = pick(MOUNT.pine, gx + 1, gz + 1);
+    boxes.push(box(cx - 0.2, h, cz - 0.2, cx + 0.2, h + 1.6, cz + 0.2, MOUNT.trunk));
+    boxes.push(box(cx - s, h + 1.2, cz - s, cx + s, h + 1.2 + s * 1.7, cz + s, pine));
+    boxes.push(box(cx - s * 0.5, h + 1.2 + s * 1.7, cz - s * 0.5,
+      cx + s * 0.5, h + 1.2 + s * 2.6, cz + s * 0.5, pine));
+  }
+
+  return {
+    boxes,
+    spawn: { position: [0, CONFIG.drone.collisionRadius, 0], yaw: 0 },
+    env: {
+      sky: 0x9cc4e0, fogNear: 120, fogFar: 520,
+      ground: 0x64825a, grid: 0x57724e, size: 500,
+      shadows: true,
     },
   };
 }
@@ -348,6 +513,7 @@ export const MAPS = {
   classic: { name: 'Classic Field', generate: generateClassic },
   bando: { name: 'The Bando', generate: generateBando },
   lake: { name: 'The Lake', generate: generateLake },
+  mountain: { name: 'The Mountain', generate: generateMountain },
 };
 
 export function generateLayout(mapId = 'classic') {
@@ -442,6 +608,25 @@ export function buildWorldScene(scene, layout) {
   sun.position.set(60, 100, 40);
   scene.add(sun);
 
+  const shadows = !!env.shadows;
+  if (shadows) {
+    // Lower sun (~30 deg) so shadows are long enough to read at distance,
+    // and far enough back that the whole map sits inside the near/far planes.
+    sun.position.set(240, 150, 100);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    const half = env.size / 2 + 20;
+    sun.shadow.camera.left = -half;
+    sun.shadow.camera.right = half;
+    sun.shadow.camera.top = half;
+    sun.shadow.camera.bottom = -half;
+    sun.shadow.camera.near = 50;
+    sun.shadow.camera.far = 700;
+    sun.shadow.camera.updateProjectionMatrix();
+    sun.shadow.bias = -0.0004;
+    sun.shadow.normalBias = 0.8;
+  }
+
   // Visual ground extends well past the play area so the horizon never shows
   // the plane's edge; collision ground (y=0) is infinite anyway.
   const groundSize = env.size * 4;
@@ -450,6 +635,7 @@ export function buildWorldScene(scene, layout) {
     new THREE.MeshLambertMaterial({ color: env.ground })
   );
   ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = shadows;
   scene.add(ground);
 
   const grid = new THREE.GridHelper(env.size, Math.round(env.size / 3), env.grid, env.grid);
@@ -458,8 +644,11 @@ export function buildWorldScene(scene, layout) {
 
   // Water surfaces: slabs whose tops sit at the collision water level,
   // height-staggered a few mm so overlapping rects don't z-fight each other.
+  // Phong specular gives a sun glint that flat Lambert can't.
   if (layout.water && layout.water.length) {
-    const waterMat = new THREE.MeshLambertMaterial({ color: LAKE.water });
+    const waterMat = new THREE.MeshPhongMaterial({
+      color: LAKE.water, specular: 0x668899, shininess: 90,
+    });
     const H = 0.3;
     layout.water.forEach((w, i) => {
       const sx = w.max[0] - w.min[0];
@@ -470,28 +659,64 @@ export function buildWorldScene(scene, layout) {
         w.level - H / 2 + i * 0.003,
         w.min[1] + sz / 2
       );
+      mesh.receiveShadow = shadows;
       scene.add(mesh);
     });
   }
 
-  // All boxes in a single instanced draw call - map density is essentially free.
-  const inst = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(1, 1, 1),
-    new THREE.MeshLambertMaterial(),
-    layout.boxes.length
-  );
-  inst.frustumCulled = false;
-  const m = new THREE.Matrix4();
-  const pos = new THREE.Vector3();
-  const scale = new THREE.Vector3();
-  const q = new THREE.Quaternion();
-  const col = new THREE.Color();
-  layout.boxes.forEach((b, i) => {
-    scale.set(b.max[0] - b.min[0], b.max[1] - b.min[1], b.max[2] - b.min[2]);
-    pos.set(b.min[0] + scale.x / 2, b.min[1] + scale.y / 2, b.min[2] + scale.z / 2);
-    m.compose(pos, q, scale);
-    inst.setMatrixAt(i, m);
-    inst.setColorAt(i, col.setHex(b.color));
-  });
-  scene.add(inst);
+  // Painted wall sign: text drawn to a canvas texture, no font assets needed.
+  if (layout.sign) {
+    const s = layout.sign;
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 256;
+    // Transparent background: only the lettering is drawn, so it reads as
+    // paint on the wall and inherits the building's own shading around it.
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#15181c';
+    ctx.font = 'bold 130px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(s.text, canvas.width / 2, canvas.height / 2 + 6);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = 4;
+    const sign = new THREE.Mesh(
+      new THREE.PlaneGeometry(s.size[0], s.size[1]),
+      new THREE.MeshBasicMaterial({ map: texture, transparent: true })
+    );
+    sign.position.fromArray(s.center);
+    sign.rotation.y = s.rotationY;
+    scene.add(sign);
+  }
+
+  // Colliders and decorations each render as one instanced draw call -
+  // map density is essentially free.
+  const addInstanced = (list) => {
+    if (!list || !list.length) return;
+    const inst = new THREE.InstancedMesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshLambertMaterial(),
+      list.length
+    );
+    inst.frustumCulled = false;
+    inst.castShadow = shadows;
+    inst.receiveShadow = shadows;
+    const m = new THREE.Matrix4();
+    const pos = new THREE.Vector3();
+    const scale = new THREE.Vector3();
+    const q = new THREE.Quaternion();
+    const col = new THREE.Color();
+    list.forEach((b, i) => {
+      scale.set(b.max[0] - b.min[0], b.max[1] - b.min[1], b.max[2] - b.min[2]);
+      pos.set(b.min[0] + scale.x / 2, b.min[1] + scale.y / 2, b.min[2] + scale.z / 2);
+      m.compose(pos, q, scale);
+      inst.setMatrixAt(i, m);
+      inst.setColorAt(i, col.setHex(b.color));
+    });
+    scene.add(inst);
+  };
+  addInstanced(layout.boxes);
+  addInstanced(layout.deco);
 }

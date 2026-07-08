@@ -19,6 +19,10 @@ const mapId = MAPS[mapParam] ? mapParam : 'classic';
 const scene = new THREE.Scene();
 const layout = generateLayout(mapId);
 const collisionWorld = createCollisionWorld(layout);
+if (layout.env && layout.env.shadows) {
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
+}
 buildWorldScene(scene, layout);
 
 document.getElementById('hint').textContent =
@@ -131,3 +135,6 @@ function frame(now) {
 }
 
 requestAnimationFrame(frame);
+
+// Debug handle for console inspection; not used by the sim itself.
+window.__sim = { renderer, scene, drone, layout };

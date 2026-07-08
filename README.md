@@ -23,9 +23,14 @@ Pick with `?map=<id>` in the URL or cycle with **M** in-game:
   holes in every slab, window bays, a solid core to orbit, a half-built
   neighbor, derelict shells, and rubble.
 - `lake` — two retaining ponds joined by a concrete spillway gap (walls plus a
-  low sill to thread), grass berms all around, a parking-lot slalom, an office
-  building, and a treeline. Water is a hazard: touch it while armed and you're
-  in the drink — reset to fly again. Disarmed quads float.
+  low sill to thread), terraced grass berms with crest paths, shoreline reeds,
+  a parking-lot slalom, an office building, and a treeline. Water is a hazard:
+  touch it while armed and you're in the drink — reset to fly again. Disarmed
+  quads float. Runs with real sun shadows (`env.shadows`).
+- `mountain` — ridged-noise terrain as terraced columns: connected valleys and
+  canyons between steep ridgelines, saddles to cross, pines on the lower
+  slopes, snow on the peaks. Spawns in a flat launch bowl. Shadows on; the
+  hardest map of the set.
 
 Maps are plain data (`src/world.js`): a generator returns boxes + spawn + sky
 settings, and collision (uniform-grid accelerated) and rendering (single
