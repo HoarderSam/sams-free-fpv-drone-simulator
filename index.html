@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect x='2' y='2' width='4' height='4' fill='%23d94f2a'/><rect x='10' y='2' width='4' height='4' fill='%232b2f33'/><rect x='2' y='10' width='4' height='4' fill='%232b2f33'/><rect x='10' y='10' width='4' height='4' fill='%232b2f33'/><rect x='6' y='6' width='4' height='4' fill='%239dff57'/></svg>" />
+  <title>Sam's Free FPV Drone Simulator</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+    #app canvas { display: block; }
+    #hud {
+      position: fixed; inset: 0; pointer-events: none;
+      font-family: "Cascadia Mono", Consolas, monospace;
+      color: #9dff57; text-shadow: 0 0 4px rgba(0,0,0,.9), 1px 1px 0 rgba(0,0,0,.9);
+      font-size: 14px;
+    }
+    #status { position: absolute; top: 14px; left: 16px; font-size: 18px; letter-spacing: 1px; }
+    #flash { position: absolute; top: 44px; left: 16px; color: #ffd24a; }
+    #telemetry { position: absolute; top: 14px; right: 16px; text-align: right; white-space: pre; }
+    #throttle-wrap {
+      position: absolute; left: 16px; bottom: 90px; width: 10px; height: 140px;
+      border: 1px solid #9dff57; background: rgba(0,0,0,.35);
+    }
+    #throttle-bar { position: absolute; bottom: 0; left: 0; right: 0; background: #9dff57; height: 0%; }
+    #input-debug { position: absolute; left: 36px; bottom: 90px; font-size: 11px; color: #6fbf3e; white-space: pre; }
+    #crosshair { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px;
+      background: rgba(157,255,87,.8); border-radius: 50%; }
+    #hint { position: absolute; bottom: 14px; left: 16px; right: 16px; color: #cfe9b8; font-size: 12px; opacity: .85; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="hud">
+    <div id="status"></div>
+    <div id="flash"></div>
+    <div id="telemetry"></div>
+    <div id="throttle-wrap"><div id="throttle-bar"></div></div>
+    <div id="input-debug"></div>
+    <div id="crosshair"></div>
+    <div id="hint">
+      Enter / gamepad A: arm &nbsp;|&nbsp; R / B: reset &nbsp;|&nbsp; C: camera &nbsp;|&nbsp;
+      keyboard: W/S throttle, A/D yaw, arrows pitch/roll (gamepad or USB radio strongly recommended)
+    </div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
