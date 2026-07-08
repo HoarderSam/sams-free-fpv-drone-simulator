@@ -13,6 +13,21 @@ npm run dev          # dev server (vite), open the printed URL
 npm run test:physics # headless physics sanity checks (hover, step response, signs)
 ```
 
+## Maps
+
+Pick with `?map=<id>` in the URL or cycle with **M** in-game:
+
+- `classic` (default) — open field with scattered blocks and race gates; light
+  enough for any machine.
+- `bando` — freestyle playground: a five-story gutted concrete tower with dive
+  holes in every slab, window bays, a solid core to orbit, a half-built
+  neighbor, derelict shells, and rubble.
+
+Maps are plain data (`src/world.js`): a generator returns boxes + spawn + sky
+settings, and collision (uniform-grid accelerated) and rendering (single
+instanced draw call) are built from that, so map density is essentially free.
+To add a map, write one generator function and register it in `MAPS`.
+
 ## Controls
 
 | Action | Keyboard | Gamepad (Xbox layout) |
@@ -20,6 +35,7 @@ npm run test:physics # headless physics sanity checks (hover, step response, sig
 | Arm / disarm | Enter | A |
 | Reset to spawn | R | B |
 | FPV / chase camera | C | Y |
+| Next map | M | — |
 | Throttle | W / S | left stick vertical |
 | Yaw | A / D | left stick horizontal |
 | Pitch / roll | arrow keys | right stick |

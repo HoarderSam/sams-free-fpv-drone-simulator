@@ -3,7 +3,7 @@
 // translation directions in the world frame, and ground collision settling.
 import { CONFIG } from '../src/config.js';
 import { Drone } from '../src/drone.js';
-import { createCollisionWorld } from '../src/world.js';
+import { createCollisionWorld, generateLayout } from '../src/world.js';
 
 const DT = CONFIG.physics.dt;
 const AIR = { collide: () => null };
@@ -143,6 +143,44 @@ for (const tc of RATE_CASES) {
   // Fall armed with idle motors from 6 m -> impact well above crashSpeed
   run(d, { throttle: 0 }, 2.5, GROUND);
   check('hard armed impact -> crash + disarm', d.crashed && !d.armed);
+}
+
+// --- 5. Collision grid vs brute force on the dense map ----------------------
+{
+  const layout = generateLayout('bando');
+  const world = createCollisionWorld(layout);
+
+  const brute = (p, r) => {
+    let best = p.y < r ? { depth: r - p.y } : null;
+    for (const b of layout.boxes) {
+      const nx = Math.min(Math.max(p.x, b.min[0]), b.max[0]);
+      const ny = Math.min(Math.max(p.y, b.min[1]), b.max[1]);
+      const nz = Math.min(Math.max(p.z, b.min[2]), b.max[2]);
+      const d2 = (p.x - nx) ** 2 + (p.y - ny) ** 2 + (p.z - nz) ** 2;
+      if (d2 >= r * r) continue;
+      const depth = d2 > 1e-12 ? r - Math.sqrt(d2) : r;
+      if (!best || depth > best.depth) best = { depth };
+    }
+    return best;
+  };
+
+  let lcg = 12345;
+  const rnd = () => ((lcg = (lcg * 1664525 + 1013904223) >>> 0) / 4294967296);
+  let mismatches = 0;
+  let contacts = 0;
+  for (let i = 0; i < 5000; i++) {
+    const p = { x: (rnd() * 2 - 1) * 60, y: rnd() * 25, z: (rnd() * 2 - 1) * 60 };
+    const a = world.collide(p, CONFIG.drone.collisionRadius);
+    const b = brute(p, CONFIG.drone.collisionRadius);
+    if (!!a !== !!b || (a && Math.abs(a.depth - b.depth) > 1e-9)) mismatches++;
+    if (b) contacts++;
+  }
+  check('bando: grid collision matches brute force', mismatches === 0,
+    `${contacts} contact samples of 5000, ${mismatches} mismatches`);
+
+  const classicCount = generateLayout('classic').boxes.length;
+  check('bando: meaningfully denser than classic', layout.boxes.length > 2 * classicCount,
+    `${layout.boxes.length} boxes vs ${classicCount}`);
 }
 
 console.log(failures === 0 ? '\nAll physics checks passed.' : `\n${failures} check(s) FAILED.`);

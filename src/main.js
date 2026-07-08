@@ -3,7 +3,7 @@ import { CONFIG } from './config.js';
 import { Drone } from './drone.js';
 import { Input } from './input.js';
 import { HUD } from './hud.js';
-import { generateLayout, createCollisionWorld, buildWorldScene } from './world.js';
+import { MAPS, generateLayout, createCollisionWorld, buildWorldScene } from './world.js';
 import { buildDroneMesh, updateShadow } from './droneMesh.js';
 
 const DT = CONFIG.physics.dt;
@@ -13,10 +13,17 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.getElementById('app').appendChild(renderer.domElement);
 
+const mapParam = new URLSearchParams(location.search).get('map');
+const mapId = MAPS[mapParam] ? mapParam : 'classic';
+
 const scene = new THREE.Scene();
-const layout = generateLayout();
+const layout = generateLayout(mapId);
 const collisionWorld = createCollisionWorld(layout);
 buildWorldScene(scene, layout);
+
+document.getElementById('hint').textContent =
+  `map: ${MAPS[mapId].name} (M: next) | Enter/A: arm | R/B: reset | C: camera | ` +
+  'keyboard: W/S throttle, A/D yaw, arrows pitch/roll';
 
 const drone = new Drone();
 drone.reset(layout.spawn);
@@ -81,6 +88,12 @@ function frame(now) {
   if (cmd.camToggle) {
     useChase = !useChase;
     droneMesh.visible = useChase;
+  }
+  if (cmd.mapNext) {
+    const ids = Object.keys(MAPS);
+    const next = ids[(ids.indexOf(mapId) + 1) % ids.length];
+    location.search = `?map=${next}`; // reload with the next map
+    return;
   }
 
   acc += delta;

@@ -77,11 +77,13 @@ export class Input {
       arm: this.keys.has('Enter') || btn(g.armButton),
       reset: this.keys.has('KeyR') || btn(g.resetButton),
       cam: this.keys.has('KeyC') || btn(g.camButton),
+      map: this.keys.has('KeyM'),
     };
     const events = {
       armToggle: now.arm && !this.prevKeys.arm,
       reset: now.reset && !this.prevKeys.reset,
       camToggle: now.cam && !this.prevKeys.cam,
+      mapNext: now.map && !this.prevKeys.map,
     };
     this.prevKeys = now;
 
